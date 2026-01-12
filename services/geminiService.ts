@@ -5,17 +5,17 @@ import { Framework, GroundingSource } from "../types";
 export const generateFramework = async (
   topic: string
 ): Promise<{ framework: Framework; sources: GroundingSource[] }> => {
-  // Use a new instance to ensure we pick up the latest injected API_KEY
+  // Always create a new instance to pick up the most up-to-date API key (especially after priority key selection)
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const response = await ai.models.generateContent({
-    // Framework generation is a complex reasoning task, switching to Gemini 3 Pro
-    model: 'gemini-3-pro-preview',
+    // Using gemini-3-flash-preview as requested for better availability and free-tier performance
+    model: 'gemini-3-flash-preview',
     contents: `As Munawar, Wealth & Wisdom Architect, generate a comprehensive intellectual framework for: "${topic}". 
     Tone: Calm, Deeply Rational, Minimalist, Authoritative. Avoid hype and buzzwords.`,
     config: {
       responseMimeType: "application/json",
-      // Enforce specific JSON structure with responseSchema
+      // Strict schema ensures structured output even with smaller models
       responseSchema: {
         type: Type.OBJECT,
         properties: {
@@ -65,9 +65,9 @@ export const generateFramework = async (
   });
 
   const text = response.text;
-  if (!text) throw new Error("Architectural data stream was interrupted.");
+  if (!text) throw new Error("Architectural reasoning was interrupted by the system.");
   
-  // Safely clean potential markdown wrappers before parsing
+  // Flash models sometimes include markdown wrappers, we strip them to ensure clean parsing
   let jsonStr = text.trim();
   if (jsonStr.startsWith('```json')) {
     jsonStr = jsonStr.replace(/^```json\n?/, '').replace(/\n?```$/, '');
@@ -81,7 +81,7 @@ export const generateFramework = async (
     groundingChunks.forEach((chunk: any) => {
       if (chunk.web) {
         sources.push({
-          title: chunk.web.title || "Reference",
+          title: chunk.web.title || "External Intelligence",
           uri: chunk.web.uri
         });
       }

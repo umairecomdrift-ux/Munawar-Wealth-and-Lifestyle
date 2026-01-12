@@ -7,7 +7,6 @@ import FrameworkDisplay from './components/FrameworkDisplay';
 import { Loader2, Info, FileDown, RefreshCw, Key, AlertCircle } from 'lucide-react';
 
 // Simple internal icon shim for ShieldCheck if not imported correctly
-// Moved to top and converted to function declaration to avoid reference errors before initialization
 function ShieldCheck({ className }: { className?: string }) {
   return (
     <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
@@ -21,7 +20,6 @@ declare global {
   }
 
   interface Window {
-    // Modified to optional to match system environment declarations and fix "identical modifiers" error
     aistudio?: AIStudio;
   }
 }
@@ -57,7 +55,6 @@ const App: React.FC = () => {
     } catch (err: any) {
       console.error("Architectural Error:", err);
       
-      // Handle the case where a previous key became invalid
       if (err.message?.includes("Requested entity was not found.")) {
         setHasPersonalKey(false);
         handleOpenKeySelector();
@@ -67,7 +64,6 @@ const App: React.FC = () => {
       let message = "An unexpected architectural error occurred.";
       let isQuota = false;
 
-      // Deep string check for quota errors in raw error objects
       const errStr = err.message || JSON.stringify(err);
       if (
         errStr.includes("429") || 
@@ -75,10 +71,9 @@ const App: React.FC = () => {
         errStr.toLowerCase().includes("quota") ||
         errStr.includes("limit")
       ) {
-        message = "Architectural Studio Quota Exhausted. The shared processing lane is at capacity. Use a Priority Key for immediate access.";
+        message = "Architectural Studio Quota Exhausted. The shared processing lane is at capacity. Use a Priority Key for immediate high-speed access.";
         isQuota = true;
       } else {
-        // Try to clean up JSON if it leaked into the message
         try {
           const parsed = JSON.parse(errStr);
           message = parsed.error?.message || message;
@@ -102,10 +97,8 @@ const App: React.FC = () => {
   const handleOpenKeySelector = async () => {
     if (window.aistudio?.openSelectKey) {
       await window.aistudio.openSelectKey();
-      // Assume success immediately to mitigate potential race conditions after key selection
       setHasPersonalKey(true);
       setError(null);
-      // Reset status to allow immediate retry after key update
       if (status === AppStatus.ERROR) {
         setStatus(AppStatus.IDLE);
       }
@@ -187,7 +180,7 @@ const App: React.FC = () => {
             <div className="text-center space-y-6">
               <h2 className="text-5xl font-black text-slate-900 tracking-tight leading-none">Framework <br/><span className="text-blue-600 underline decoration-blue-100 underline-offset-8">Architect.</span></h2>
               <p className="text-xl text-slate-500 font-medium leading-relaxed max-w-lg mx-auto">
-                Clean, high-speed reasoning for wealth and lifestyle systems using Gemini 3 Flash.
+                High-speed reasoning for wealth and lifestyle systems powered by <span className="text-blue-600 font-bold">Gemini 3 Flash</span>.
               </p>
             </div>
             <InputForm onGenerate={handleGenerate} isSubmitting={false} />
@@ -248,10 +241,14 @@ const App: React.FC = () => {
                 )}
               </div>
               {error.isQuota && (
-                <p className="mt-8 text-[10px] text-slate-400 font-bold uppercase tracking-widest text-balance">
-                  Personal keys bypass shared limits. <br/>
-                  <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-blue-500 underline">Get a Priority Key (Google Cloud Billing)</a>
-                </p>
+                <div className="mt-8 p-6 bg-slate-50 rounded-2xl border border-slate-100">
+                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest text-balance mb-3">
+                    Personal keys bypass shared processing limits.
+                  </p>
+                  <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-blue-500 text-xs font-black underline underline-offset-4 hover:text-blue-700 transition-colors uppercase tracking-widest">
+                    Get a Priority Key
+                  </a>
+                </div>
               )}
             </div>
           </div>
