@@ -9,7 +9,7 @@ export const generateFramework = async (
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const response = await ai.models.generateContent({
-    model: 'gemini-3-pro-preview',
+    model: 'gemini-3-flash-preview',
     contents: `As Munawar, Wealth & Wisdom Architect, generate a comprehensive intellectual framework for: "${topic}". 
     Output strictly as JSON matching this structure:
     {
@@ -41,7 +41,6 @@ export const generateFramework = async (
     config: {
       responseMimeType: "application/json",
       tools: [{ googleSearch: {} }],
-      thinkingConfig: { thinkingBudget: 0 }
     },
   });
 

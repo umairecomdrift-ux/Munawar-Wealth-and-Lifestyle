@@ -6,8 +6,7 @@ import InputForm from './components/InputForm';
 import FrameworkDisplay from './components/FrameworkDisplay';
 import { Loader2, Info, FileDown, RefreshCw, Key, AlertCircle } from 'lucide-react';
 
-// Augmented Window interface to match the existing AIStudio type in the environment.
-// Using 'readonly' to match the modifiers and 'AIStudio' type as required by the compiler.
+// Augmented Window interface to match the environment requirements.
 declare global {
   interface AIStudio {
     hasSelectedApiKey: () => Promise<boolean>;
@@ -15,7 +14,8 @@ declare global {
   }
 
   interface Window {
-    readonly aistudio: AIStudio;
+    // Removed readonly modifier to match existing global declarations where aistudio might already be defined.
+    aistudio: AIStudio;
   }
 }
 
@@ -50,8 +50,6 @@ const App: React.FC = () => {
     } catch (err: any) {
       console.error("Architectural Error:", err);
       
-      // If the request fails with "Requested entity was not found.", 
-      // reset the key selection state and prompt the user to select a key again via openSelectKey().
       if (err.message?.includes("Requested entity was not found.")) {
         setHasPersonalKey(false);
         handleOpenKeySelector();
@@ -61,10 +59,9 @@ const App: React.FC = () => {
       let message = "An unexpected architectural error occurred.";
       let isQuota = false;
 
-      // Detect 429 Resource Exhausted or quota errors
       const errStr = JSON.stringify(err);
       if (errStr.includes("429") || errStr.includes("RESOURCE_EXHAUSTED") || err.message?.includes("quota")) {
-        message = "The Architectural Studio is currently at capacity (Rate Limit Hit). Please wait a few moments or provide a personal API key for priority access.";
+        message = "The Architectural Studio is at capacity. Please wait a moment or provide your own API key for priority access.";
         isQuota = true;
       } else {
         message = err.message || message;
@@ -85,7 +82,6 @@ const App: React.FC = () => {
   const handleOpenKeySelector = async () => {
     if (window.aistudio?.openSelectKey) {
       await window.aistudio.openSelectKey();
-      // Assume success as per race condition rules to proceed to the app
       setHasPersonalKey(true);
       setError(null);
       setStatus(AppStatus.IDLE);
@@ -105,7 +101,7 @@ const App: React.FC = () => {
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    // @ts-ignore - html2pdf is expected to be available globally
+    // @ts-ignore
     html2pdf().set(opt).from(element).save().then(() => {
       setIsDownloading(false);
     });
@@ -113,7 +109,6 @@ const App: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#f8fbff] text-[#0f172a] selection:bg-blue-100 selection:text-blue-900">
-      {/* Header */}
       <header className="bg-white/80 backdrop-blur-md border-b border-blue-100 sticky top-0 z-50 py-4 px-4 md:px-8 shadow-sm">
         <div className="max-w-6xl mx-auto flex items-center justify-between">
           <div className="flex items-center gap-3 group cursor-pointer" onClick={handleReset}>
@@ -132,4 +127,118 @@ const App: React.FC = () => {
                   disabled={isDownloading}
                   className="hidden md:flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-all shadow-md shadow-blue-100 disabled:opacity-50"
                 >
-                  {isDownloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.
+                  {isDownloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
+                  EXPORT PDF
+                </button>
+                <button 
+                  onClick={handleReset}
+                  className="p-2.5 bg-white border border-blue-100 text-blue-600 rounded-xl hover:bg-blue-50 transition-colors"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </>
+            )}
+            {!hasPersonalKey && (
+               <button 
+               onClick={handleOpenKeySelector}
+               className="hidden sm:flex items-center gap-2 px-4 py-2 border border-blue-100 text-blue-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all"
+             >
+               <Key className="w-3 h-3" />
+               Priority Key
+             </button>
+            )}
+          </div>
+        </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto px-4 py-12 md:py-20">
+        {status === AppStatus.IDLE && (
+          <div className="max-w-2xl mx-auto space-y-12 animate-in fade-in duration-1000">
+            <div className="text-center space-y-6">
+              <h2 className="text-5xl font-black text-slate-900 tracking-tight leading-none">Framework <br/><span className="text-blue-600 underline decoration-blue-100 underline-offset-8">Architect.</span></h2>
+              <p className="text-xl text-slate-500 font-medium leading-relaxed max-w-lg mx-auto">
+                Clean, high-speed reasoning for wealth and lifestyle systems.
+              </p>
+            </div>
+            <InputForm onGenerate={handleGenerate} isSubmitting={false} />
+            <div className="bg-white border border-blue-100 p-8 rounded-[2.5rem] shadow-xl shadow-blue-500/5 flex gap-6">
+              <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center shrink-0">
+                <Info className="w-6 h-6 text-blue-600" />
+              </div>
+              <div className="space-y-1">
+                <p className="font-bold text-slate-900 text-sm uppercase tracking-widest">Philosophy</p>
+                <p className="text-slate-500 text-sm leading-relaxed font-medium">
+                  Solving for decades, not months. Every framework is built with systemic logic and long-term rational principles.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {status === AppStatus.LOADING_FRAMEWORK && (
+          <div className="flex flex-col items-center justify-center min-h-[500px] space-y-8 animate-in fade-in zoom-in duration-500">
+            <div className="relative">
+              <div className="w-24 h-24 border-2 border-blue-50 border-t-blue-600 rounded-full animate-spin"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-3 h-3 bg-blue-600 rounded-full animate-pulse shadow-2xl shadow-blue-600"></div>
+              </div>
+            </div>
+            <div className="text-center space-y-3">
+              <p className="text-2xl font-black text-slate-900 tracking-tighter uppercase">Flash Reasoning</p>
+              <p className="text-blue-500 font-bold text-xs uppercase tracking-[0.4em]">Optimizing Intellectual Infrastructure</p>
+            </div>
+          </div>
+        )}
+
+        {status === AppStatus.ERROR && error && (
+          <div className="max-w-2xl mx-auto text-center animate-in slide-in-from-top-4">
+            <div className="bg-white border-2 border-slate-100 p-12 rounded-[3rem] shadow-2xl shadow-slate-200/50">
+              <div className="w-20 h-20 bg-red-50 text-red-600 rounded-[2rem] flex items-center justify-center mx-auto mb-8">
+                <AlertCircle className="w-10 h-10" />
+              </div>
+              <h3 className="text-2xl font-black text-slate-900 mb-4 tracking-tight">System Interruption</h3>
+              <p className="text-slate-500 font-medium mb-10 leading-relaxed px-4">
+                {error.message}
+              </p>
+              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+                <button 
+                  onClick={handleReset}
+                  className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-xl"
+                >
+                  RETRY
+                </button>
+                {error.isQuota && (
+                  <button 
+                    onClick={handleOpenKeySelector}
+                    className="bg-blue-600 text-white px-10 py-4 rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-xl shadow-blue-200"
+                  >
+                    USE MY OWN KEY
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {framework && status === AppStatus.SUCCESS && (
+          <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000">
+            <div id="framework-to-print">
+              <FrameworkDisplay framework={framework} sources={sources} />
+            </div>
+            <div className="mt-20 pt-12 border-t border-blue-50 flex flex-col items-center gap-6">
+              <p className="text-blue-400 text-[9px] font-black uppercase tracking-[0.5em] text-center">
+                STRATEGIC DOCUMENT • GENERATED VIA FLASH REASONING
+              </p>
+            </div>
+          </div>
+        )}
+      </main>
+      
+      <footer className="py-12 text-center text-slate-300 text-[10px] font-bold tracking-[0.4em] uppercase">
+        © Munawar Systems • Rational Architecture
+      </footer>
+    </div>
+  );
+};
+
+export default App;
