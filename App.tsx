@@ -1,168 +1,176 @@
 
-import React, { useState, useCallback } from 'react';
-import { AppStatus, Framework, GeneratedImage, GroundingSource } from './types';
-import { generateFramework, generateImage } from './services/geminiService';
+import React, { useState } from 'react';
+import { AppStatus, Framework, GroundingSource } from './types';
+import { generateFramework } from './services/geminiService';
 import InputForm from './components/InputForm';
 import FrameworkDisplay from './components/FrameworkDisplay';
-import VisualGallery from './components/VisualGallery';
-import { Loader2, Info } from 'lucide-react';
+import { Loader2, Info, FileDown, RefreshCw } from 'lucide-react';
 
 const App: React.FC = () => {
   const [status, setStatus] = useState<AppStatus>(AppStatus.IDLE);
   const [framework, setFramework] = useState<Framework | null>(null);
   const [sources, setSources] = useState<GroundingSource[]>([]);
-  const [images, setImages] = useState<GeneratedImage[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [isDownloading, setIsDownloading] = useState(false);
 
-  const handleGenerate = async (topic: string, visualMode: boolean, imageSize: '1K' | '2K' | '4K') => {
+  const handleGenerate = async (topic: string) => {
     try {
       setError(null);
       setStatus(AppStatus.LOADING_FRAMEWORK);
       
-      const { framework: fw, sources: src } = await generateFramework(topic, visualMode);
+      const { framework: fw, sources: src } = await generateFramework(topic);
       setFramework(fw);
       setSources(src);
       
-      if (visualMode && fw.visualPrompts && fw.visualPrompts.length > 0) {
-        // Check for API key if using image generation
-        // @ts-ignore
-        const hasKey = await window.aistudio.hasSelectedApiKey();
-        if (!hasKey) {
-          // @ts-ignore
-          await window.aistudio.openSelectKey();
-        }
-
-        setStatus(AppStatus.LOADING_IMAGES);
-        const generatedImages: GeneratedImage[] = [];
-        for (const prompt of fw.visualPrompts) {
-          try {
-            const url = await generateImage(prompt, imageSize);
-            generatedImages.push({
-              id: Math.random().toString(36).substr(2, 9),
-              url,
-              prompt,
-              size: imageSize
-            });
-          } catch (imgErr) {
-            console.error("Image generation failed for prompt", prompt, imgErr);
-            // If it fails due to "Requested entity was not found", reset key
-            if (String(imgErr).includes("Requested entity was not found")) {
-              // @ts-ignore
-              await window.aistudio.openSelectKey();
-            }
-          }
-        }
-        setImages(generatedImages);
-      } else {
-        setImages([]);
-      }
-
       setStatus(AppStatus.SUCCESS);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "An unexpected error occurred. Please try again.");
+      setError(err.message || "An unexpected architectural error occurred.");
       setStatus(AppStatus.ERROR);
     }
   };
 
   const handleReset = () => {
     setFramework(null);
-    setImages([]);
     setSources([]);
     setStatus(AppStatus.IDLE);
     setError(null);
   };
 
+  const downloadPDF = () => {
+    const element = document.getElementById('framework-to-print');
+    if (!element) return;
+    
+    setIsDownloading(true);
+    const opt = {
+      margin: 10,
+      filename: `Munawar-Framework-${new Date().getTime()}.pdf`,
+      image: { type: 'jpeg', quality: 1 },
+      html2canvas: { scale: 3, useCORS: true, letterRendering: true },
+      jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    // @ts-ignore
+    html2pdf().set(opt).from(element).save().then(() => {
+      setIsDownloading(false);
+    });
+  };
+
   return (
-    <div className="min-h-screen bg-[#f1f5f9] text-[#0f172a]">
+    <div className="min-h-screen bg-[#f8fbff] text-[#0f172a] selection:bg-blue-100 selection:text-blue-900">
       {/* Header */}
-      <header className="bg-white border-b border-slate-200 sticky top-0 z-50 py-6 px-4 md:px-8">
-        <div className="max-w-5xl mx-auto flex flex-col md:flex-row md:items-center justify-between gap-4">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight text-slate-900">Munawar</h1>
-            <p className="text-slate-500 font-medium">Wealth, Wisdom & Lifestyle Architect</p>
+      <header className="bg-white/80 backdrop-blur-md border-b border-blue-100 sticky top-0 z-50 py-4 px-4 md:px-8 shadow-sm">
+        <div className="max-w-6xl mx-auto flex items-center justify-between">
+          <div className="flex items-center gap-3 group cursor-pointer" onClick={handleReset}>
+            <div className="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center text-white font-bold text-xl shadow-lg shadow-blue-200 group-hover:scale-105 transition-transform">M</div>
+            <div>
+              <h1 className="text-xl font-bold tracking-tighter text-blue-900">MUNAWAR</h1>
+              <p className="text-blue-500 font-bold text-[10px] uppercase tracking-[0.2em] -mt-1">Architect</p>
+            </div>
           </div>
-          {status !== AppStatus.IDLE && (
-            <button 
-              onClick={handleReset}
-              className="text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors uppercase tracking-wider"
-            >
-              Start New Analysis
-            </button>
-          )}
+
+          <div className="flex items-center gap-4">
+            {framework && status === AppStatus.SUCCESS && (
+              <>
+                <button 
+                  onClick={downloadPDF}
+                  disabled={isDownloading}
+                  className="hidden md:flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-all shadow-md shadow-blue-100 disabled:opacity-50"
+                >
+                  {isDownloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
+                  EXPORT PDF
+                </button>
+                <button 
+                  onClick={handleReset}
+                  className="p-2.5 bg-white border border-blue-100 text-blue-600 rounded-xl hover:bg-blue-50 transition-colors"
+                  title="New Analysis"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 py-8 md:py-12">
+      <main className="max-w-6xl mx-auto px-4 py-12 md:py-20">
         {status === AppStatus.IDLE && (
-          <div className="max-w-2xl mx-auto space-y-8 animate-in fade-in duration-700">
-            <div className="text-center space-y-4">
-              <h2 className="text-4xl font-bold text-slate-800">Framework Generator</h2>
-              <p className="text-lg text-slate-600 leading-relaxed italic">
-                "Wealth is what you don't see. It is the options not yet exercised, the freedom to choose your time, and the clarity to ignore the noise."
+          <div className="max-w-2xl mx-auto space-y-12 animate-in fade-in duration-1000">
+            <div className="text-center space-y-6">
+              <h2 className="text-5xl font-black text-slate-900 tracking-tight leading-none">Framework <br/><span className="text-blue-600 underline decoration-blue-100 underline-offset-8">Architect.</span></h2>
+              <p className="text-xl text-slate-500 font-medium leading-relaxed max-w-lg mx-auto">
+                Clean reasoning for wealth, life, and the long horizon.
               </p>
             </div>
+            
             <InputForm onGenerate={handleGenerate} isSubmitting={false} />
-            <div className="bg-blue-50 border border-blue-100 p-4 rounded-xl flex gap-3 text-blue-800 text-sm">
-              <Info className="w-5 h-5 shrink-0" />
-              <div>
-                <p className="font-semibold">Munawar Note:</p>
-                <p>Provide a topic related to wealth building, behavior, or lifestyle design. I will generate a timeless principle-driven framework for your consideration.</p>
+            
+            <div className="bg-white border border-blue-100 p-8 rounded-[2.5rem] shadow-xl shadow-blue-500/5 flex gap-6">
+              <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center shrink-0">
+                <Info className="w-6 h-6 text-blue-600" />
+              </div>
+              <div className="space-y-1">
+                <p className="font-bold text-slate-900 text-sm uppercase tracking-widest">Philosophy</p>
+                <p className="text-slate-500 text-sm leading-relaxed font-medium">
+                  We don't solve for months; we solve for decades. Every output is a logical blueprint designed to withstand market cycles and human emotion.
+                </p>
               </div>
             </div>
           </div>
         )}
 
-        {(status === AppStatus.LOADING_FRAMEWORK || status === AppStatus.LOADING_IMAGES) && (
-          <div className="flex flex-col items-center justify-center min-h-[400px] space-y-6">
-            <Loader2 className="w-12 h-12 text-slate-400 animate-spin" />
-            <div className="text-center space-y-2">
-              <p className="text-xl font-medium text-slate-700">
-                {status === AppStatus.LOADING_FRAMEWORK ? "Architecting Framework..." : "Visualizing Conceptual Models..."}
-              </p>
-              <p className="text-slate-500">
-                {status === AppStatus.LOADING_FRAMEWORK 
-                  ? "Analyzing time horizons and distilling timeless principles."
-                  : "Rendering abstract representations of systemic trade-offs."}
-              </p>
+        {status === AppStatus.LOADING_FRAMEWORK && (
+          <div className="flex flex-col items-center justify-center min-h-[500px] space-y-8 animate-in fade-in zoom-in duration-500">
+            <div className="relative">
+              <div className="w-24 h-24 border-2 border-blue-50 border-t-blue-600 rounded-full animate-spin"></div>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-3 h-3 bg-blue-600 rounded-full animate-pulse shadow-2xl shadow-blue-600"></div>
+              </div>
+            </div>
+            <div className="text-center space-y-3">
+              <p className="text-2xl font-black text-slate-900 tracking-tighter">ARCHITECTING BLUEPRINT</p>
+              <p className="text-blue-500 font-bold text-xs uppercase tracking-[0.4em]">Decoupling Noise from Truth</p>
             </div>
           </div>
         )}
 
         {status === AppStatus.ERROR && (
-          <div className="max-w-2xl mx-auto text-center space-y-6">
-            <div className="bg-red-50 border border-red-200 text-red-800 p-6 rounded-2xl">
-              <h3 className="text-lg font-bold mb-2">Architectural Interruption</h3>
-              <p>{error}</p>
+          <div className="max-w-2xl mx-auto text-center animate-in slide-in-from-top-4">
+            <div className="bg-red-50 border border-red-100 text-red-900 p-10 rounded-[3rem] shadow-2xl shadow-red-100">
+              <h3 className="text-2xl font-black mb-4 tracking-tight">System Interruption</h3>
+              <p className="text-red-700 font-medium mb-8 leading-relaxed">{error}</p>
+              <button 
+                onClick={handleReset}
+                className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-xl"
+              >
+                RESTART SESSION
+              </button>
             </div>
-            <button 
-              onClick={handleReset}
-              className="bg-slate-900 text-white px-8 py-3 rounded-full font-bold hover:bg-slate-800 transition-all"
-            >
-              Retry
-            </button>
           </div>
         )}
 
-        {framework && (status === AppStatus.SUCCESS || status === AppStatus.LOADING_IMAGES) && (
-          <div className="space-y-12 animate-in slide-in-from-bottom-4 duration-1000">
-            <FrameworkDisplay framework={framework} sources={sources} />
+        {framework && status === AppStatus.SUCCESS && (
+          <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000">
+            <div id="framework-to-print">
+              <FrameworkDisplay framework={framework} sources={sources} />
+            </div>
             
-            {images.length > 0 && (
-              <VisualGallery images={images} setImages={setImages} />
-            )}
-            
-            <div className="pt-8 border-t border-slate-200 flex justify-center">
-              <p className="text-slate-400 text-sm max-w-lg text-center leading-relaxed">
-                Munawar does not provide financial advice. This framework is a conceptual tool for rational decision-making and should be validated against your personal circumstances.
+            <div className="mt-20 pt-12 border-t border-blue-50 flex flex-col items-center gap-6">
+              <div className="flex items-center gap-4">
+                <div className="w-2 h-2 rounded-full bg-blue-100"></div>
+                <div className="w-2 h-2 rounded-full bg-blue-300"></div>
+                <div className="w-2 h-2 rounded-full bg-blue-100"></div>
+              </div>
+              <p className="text-blue-400 text-[9px] font-black uppercase tracking-[0.5em] text-center">
+                STRATEGIC DOCUMENT • CONFIDENTIAL & RATIONAL
               </p>
             </div>
           </div>
         )}
       </main>
       
-      <footer className="py-12 border-t border-slate-200 text-center text-slate-400 text-xs tracking-widest uppercase">
-        © Munawar Frameworks • Rationality over Impulse • Decades over Months
+      <footer className="py-12 text-center text-slate-300 text-[10px] font-bold tracking-[0.4em] uppercase">
+        © Munawar Systems • Decades over Months
       </footer>
     </div>
   );

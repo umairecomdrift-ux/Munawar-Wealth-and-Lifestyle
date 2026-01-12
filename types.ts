@@ -17,20 +17,11 @@ export interface Framework {
     reality: string;
   }>;
   longTermPerspective: string;
-  visualPrompts?: string[];
-}
-
-export interface GeneratedImage {
-  id: string;
-  url: string;
-  prompt: string;
-  size: '1K' | '2K' | '4K';
 }
 
 export enum AppStatus {
   IDLE = 'IDLE',
   LOADING_FRAMEWORK = 'LOADING_FRAMEWORK',
-  LOADING_IMAGES = 'LOADING_IMAGES',
   ERROR = 'ERROR',
   SUCCESS = 'SUCCESS',
 }
