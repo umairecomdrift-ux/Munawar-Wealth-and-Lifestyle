@@ -1,17 +1,41 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppStatus, Framework, GroundingSource } from './types';
 import { generateFramework } from './services/geminiService';
 import InputForm from './components/InputForm';
 import FrameworkDisplay from './components/FrameworkDisplay';
-import { Loader2, Info, FileDown, RefreshCw } from 'lucide-react';
+import { Loader2, Info, FileDown, RefreshCw, Key, AlertCircle } from 'lucide-react';
+
+// Augmented Window interface to match the existing AIStudio type in the environment.
+// Using 'readonly' to match the modifiers and 'AIStudio' type as required by the compiler.
+declare global {
+  interface AIStudio {
+    hasSelectedApiKey: () => Promise<boolean>;
+    openSelectKey: () => Promise<void>;
+  }
+
+  interface Window {
+    readonly aistudio: AIStudio;
+  }
+}
 
 const App: React.FC = () => {
   const [status, setStatus] = useState<AppStatus>(AppStatus.IDLE);
   const [framework, setFramework] = useState<Framework | null>(null);
   const [sources, setSources] = useState<GroundingSource[]>([]);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{ message: string; isQuota: boolean } | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
+  const [hasPersonalKey, setHasPersonalKey] = useState(false);
+
+  useEffect(() => {
+    const checkKey = async () => {
+      if (window.aistudio?.hasSelectedApiKey) {
+        const hasKey = await window.aistudio.hasSelectedApiKey();
+        setHasPersonalKey(hasKey);
+      }
+    };
+    checkKey();
+  }, []);
 
   const handleGenerate = async (topic: string) => {
     try {
@@ -24,8 +48,29 @@ const App: React.FC = () => {
       
       setStatus(AppStatus.SUCCESS);
     } catch (err: any) {
-      console.error(err);
-      setError(err.message || "An unexpected architectural error occurred.");
+      console.error("Architectural Error:", err);
+      
+      // If the request fails with "Requested entity was not found.", 
+      // reset the key selection state and prompt the user to select a key again via openSelectKey().
+      if (err.message?.includes("Requested entity was not found.")) {
+        setHasPersonalKey(false);
+        handleOpenKeySelector();
+        return;
+      }
+      
+      let message = "An unexpected architectural error occurred.";
+      let isQuota = false;
+
+      // Detect 429 Resource Exhausted or quota errors
+      const errStr = JSON.stringify(err);
+      if (errStr.includes("429") || errStr.includes("RESOURCE_EXHAUSTED") || err.message?.includes("quota")) {
+        message = "The Architectural Studio is currently at capacity (Rate Limit Hit). Please wait a few moments or provide a personal API key for priority access.";
+        isQuota = true;
+      } else {
+        message = err.message || message;
+      }
+
+      setError({ message, isQuota });
       setStatus(AppStatus.ERROR);
     }
   };
@@ -35,6 +80,16 @@ const App: React.FC = () => {
     setSources([]);
     setStatus(AppStatus.IDLE);
     setError(null);
+  };
+
+  const handleOpenKeySelector = async () => {
+    if (window.aistudio?.openSelectKey) {
+      await window.aistudio.openSelectKey();
+      // Assume success as per race condition rules to proceed to the app
+      setHasPersonalKey(true);
+      setError(null);
+      setStatus(AppStatus.IDLE);
+    }
   };
 
   const downloadPDF = () => {
@@ -50,7 +105,7 @@ const App: React.FC = () => {
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
 
-    // @ts-ignore
+    // @ts-ignore - html2pdf is expected to be available globally
     html2pdf().set(opt).from(element).save().then(() => {
       setIsDownloading(false);
     });
@@ -77,103 +132,4 @@ const App: React.FC = () => {
                   disabled={isDownloading}
                   className="hidden md:flex items-center gap-2 px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition-all shadow-md shadow-blue-100 disabled:opacity-50"
                 >
-                  {isDownloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.5 h-3.5" />}
-                  EXPORT PDF
-                </button>
-                <button 
-                  onClick={handleReset}
-                  className="p-2.5 bg-white border border-blue-100 text-blue-600 rounded-xl hover:bg-blue-50 transition-colors"
-                  title="New Analysis"
-                >
-                  <RefreshCw className="w-4 h-4" />
-                </button>
-              </>
-            )}
-          </div>
-        </div>
-      </header>
-
-      <main className="max-w-6xl mx-auto px-4 py-12 md:py-20">
-        {status === AppStatus.IDLE && (
-          <div className="max-w-2xl mx-auto space-y-12 animate-in fade-in duration-1000">
-            <div className="text-center space-y-6">
-              <h2 className="text-5xl font-black text-slate-900 tracking-tight leading-none">Framework <br/><span className="text-blue-600 underline decoration-blue-100 underline-offset-8">Architect.</span></h2>
-              <p className="text-xl text-slate-500 font-medium leading-relaxed max-w-lg mx-auto">
-                Clean reasoning for wealth, life, and the long horizon.
-              </p>
-            </div>
-            
-            <InputForm onGenerate={handleGenerate} isSubmitting={false} />
-            
-            <div className="bg-white border border-blue-100 p-8 rounded-[2.5rem] shadow-xl shadow-blue-500/5 flex gap-6">
-              <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center shrink-0">
-                <Info className="w-6 h-6 text-blue-600" />
-              </div>
-              <div className="space-y-1">
-                <p className="font-bold text-slate-900 text-sm uppercase tracking-widest">Philosophy</p>
-                <p className="text-slate-500 text-sm leading-relaxed font-medium">
-                  We don't solve for months; we solve for decades. Every output is a logical blueprint designed to withstand market cycles and human emotion.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
-
-        {status === AppStatus.LOADING_FRAMEWORK && (
-          <div className="flex flex-col items-center justify-center min-h-[500px] space-y-8 animate-in fade-in zoom-in duration-500">
-            <div className="relative">
-              <div className="w-24 h-24 border-2 border-blue-50 border-t-blue-600 rounded-full animate-spin"></div>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="w-3 h-3 bg-blue-600 rounded-full animate-pulse shadow-2xl shadow-blue-600"></div>
-              </div>
-            </div>
-            <div className="text-center space-y-3">
-              <p className="text-2xl font-black text-slate-900 tracking-tighter">ARCHITECTING BLUEPRINT</p>
-              <p className="text-blue-500 font-bold text-xs uppercase tracking-[0.4em]">Decoupling Noise from Truth</p>
-            </div>
-          </div>
-        )}
-
-        {status === AppStatus.ERROR && (
-          <div className="max-w-2xl mx-auto text-center animate-in slide-in-from-top-4">
-            <div className="bg-red-50 border border-red-100 text-red-900 p-10 rounded-[3rem] shadow-2xl shadow-red-100">
-              <h3 className="text-2xl font-black mb-4 tracking-tight">System Interruption</h3>
-              <p className="text-red-700 font-medium mb-8 leading-relaxed">{error}</p>
-              <button 
-                onClick={handleReset}
-                className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-xl"
-              >
-                RESTART SESSION
-              </button>
-            </div>
-          </div>
-        )}
-
-        {framework && status === AppStatus.SUCCESS && (
-          <div className="animate-in fade-in slide-in-from-bottom-8 duration-1000">
-            <div id="framework-to-print">
-              <FrameworkDisplay framework={framework} sources={sources} />
-            </div>
-            
-            <div className="mt-20 pt-12 border-t border-blue-50 flex flex-col items-center gap-6">
-              <div className="flex items-center gap-4">
-                <div className="w-2 h-2 rounded-full bg-blue-100"></div>
-                <div className="w-2 h-2 rounded-full bg-blue-300"></div>
-                <div className="w-2 h-2 rounded-full bg-blue-100"></div>
-              </div>
-              <p className="text-blue-400 text-[9px] font-black uppercase tracking-[0.5em] text-center">
-                STRATEGIC DOCUMENT • CONFIDENTIAL & RATIONAL
-              </p>
-            </div>
-          </div>
-        )}
-      </main>
-      
-      <footer className="py-12 text-center text-slate-300 text-[10px] font-bold tracking-[0.4em] uppercase">
-        © Munawar Systems • Decades over Months
-      </footer>
-    </div>
-  );
-};
-
-export default App;
+                  {isDownloading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <FileDown className="w-3.

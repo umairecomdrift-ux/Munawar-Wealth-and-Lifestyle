@@ -5,10 +5,11 @@ import { Framework, GroundingSource } from "../types";
 export const generateFramework = async (
   topic: string
 ): Promise<{ framework: Framework; sources: GroundingSource[] }> => {
+  // Always create a new instance to pick up the latest API_KEY (especially after using openSelectKey)
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
+    model: 'gemini-3-pro-preview',
     contents: `As Munawar, Wealth & Wisdom Architect, generate a comprehensive intellectual framework for: "${topic}". 
     Output strictly as JSON matching this structure:
     {
@@ -40,11 +41,14 @@ export const generateFramework = async (
     config: {
       responseMimeType: "application/json",
       tools: [{ googleSearch: {} }],
+      thinkingConfig: { thinkingBudget: 0 }
     },
   });
 
   const text = response.text;
-  const framework: Framework = JSON.parse(text || "{}");
+  if (!text) throw new Error("No architectural data returned from the model.");
+  
+  const framework: Framework = JSON.parse(text);
   
   const sources: GroundingSource[] = [];
   const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
