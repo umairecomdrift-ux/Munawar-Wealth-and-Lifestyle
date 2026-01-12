@@ -6,7 +6,14 @@ import InputForm from './components/InputForm';
 import FrameworkDisplay from './components/FrameworkDisplay';
 import { Loader2, Info, FileDown, RefreshCw, Key, AlertCircle } from 'lucide-react';
 
-// Augmented Window interface to match the environment requirements.
+// Simple internal icon shim for ShieldCheck if not imported correctly
+// Moved to top and converted to function declaration to avoid reference errors before initialization
+function ShieldCheck({ className }: { className?: string }) {
+  return (
+    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
+  );
+}
+
 declare global {
   interface AIStudio {
     hasSelectedApiKey: () => Promise<boolean>;
@@ -14,8 +21,8 @@ declare global {
   }
 
   interface Window {
-    // Removed readonly modifier to match existing global declarations where aistudio might already be defined.
-    aistudio: AIStudio;
+    // Modified to optional to match system environment declarations and fix "identical modifiers" error
+    aistudio?: AIStudio;
   }
 }
 
@@ -50,6 +57,7 @@ const App: React.FC = () => {
     } catch (err: any) {
       console.error("Architectural Error:", err);
       
+      // Handle the case where a previous key became invalid
       if (err.message?.includes("Requested entity was not found.")) {
         setHasPersonalKey(false);
         handleOpenKeySelector();
@@ -59,12 +67,24 @@ const App: React.FC = () => {
       let message = "An unexpected architectural error occurred.";
       let isQuota = false;
 
-      const errStr = JSON.stringify(err);
-      if (errStr.includes("429") || errStr.includes("RESOURCE_EXHAUSTED") || err.message?.includes("quota")) {
-        message = "The Architectural Studio is at capacity. Please wait a moment or provide your own API key for priority access.";
+      // Deep string check for quota errors in raw error objects
+      const errStr = err.message || JSON.stringify(err);
+      if (
+        errStr.includes("429") || 
+        errStr.includes("RESOURCE_EXHAUSTED") || 
+        errStr.toLowerCase().includes("quota") ||
+        errStr.includes("limit")
+      ) {
+        message = "Architectural Studio Quota Exhausted. The shared processing lane is at capacity. Use a Priority Key for immediate access.";
         isQuota = true;
       } else {
-        message = err.message || message;
+        // Try to clean up JSON if it leaked into the message
+        try {
+          const parsed = JSON.parse(errStr);
+          message = parsed.error?.message || message;
+        } catch {
+          message = err.message || message;
+        }
       }
 
       setError({ message, isQuota });
@@ -82,9 +102,13 @@ const App: React.FC = () => {
   const handleOpenKeySelector = async () => {
     if (window.aistudio?.openSelectKey) {
       await window.aistudio.openSelectKey();
+      // Assume success immediately to mitigate potential race conditions after key selection
       setHasPersonalKey(true);
       setError(null);
-      setStatus(AppStatus.IDLE);
+      // Reset status to allow immediate retry after key update
+      if (status === AppStatus.ERROR) {
+        setStatus(AppStatus.IDLE);
+      }
     }
   };
 
@@ -147,6 +171,12 @@ const App: React.FC = () => {
                Priority Key
              </button>
             )}
+            {hasPersonalKey && (
+              <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-600 rounded-lg text-[10px] font-black uppercase tracking-widest border border-green-100">
+                <ShieldCheck className="w-3 h-3" />
+                Priority Access
+              </div>
+            )}
           </div>
         </div>
       </header>
@@ -157,7 +187,7 @@ const App: React.FC = () => {
             <div className="text-center space-y-6">
               <h2 className="text-5xl font-black text-slate-900 tracking-tight leading-none">Framework <br/><span className="text-blue-600 underline decoration-blue-100 underline-offset-8">Architect.</span></h2>
               <p className="text-xl text-slate-500 font-medium leading-relaxed max-w-lg mx-auto">
-                Clean, high-speed reasoning for wealth and lifestyle systems.
+                Clean, high-speed reasoning for wealth and lifestyle systems using Gemini 3 Flash.
               </p>
             </div>
             <InputForm onGenerate={handleGenerate} isSubmitting={false} />
@@ -197,7 +227,7 @@ const App: React.FC = () => {
                 <AlertCircle className="w-10 h-10" />
               </div>
               <h3 className="text-2xl font-black text-slate-900 mb-4 tracking-tight">System Interruption</h3>
-              <p className="text-slate-500 font-medium mb-10 leading-relaxed px-4">
+              <p className="text-slate-500 font-medium mb-10 leading-relaxed px-4 text-balance">
                 {error.message}
               </p>
               <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -205,17 +235,24 @@ const App: React.FC = () => {
                   onClick={handleReset}
                   className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-xl"
                 >
-                  RETRY
+                  TRY AGAIN
                 </button>
-                {error.isQuota && (
+                {error.isQuota && !hasPersonalKey && (
                   <button 
                     onClick={handleOpenKeySelector}
-                    className="bg-blue-600 text-white px-10 py-4 rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-xl shadow-blue-200"
+                    className="bg-blue-600 text-white px-10 py-4 rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-xl shadow-blue-200 flex items-center gap-2 justify-center"
                   >
-                    USE MY OWN KEY
+                    <Key className="w-4 h-4" />
+                    USE PRIORITY KEY
                   </button>
                 )}
               </div>
+              {error.isQuota && (
+                <p className="mt-8 text-[10px] text-slate-400 font-bold uppercase tracking-widest text-balance">
+                  Personal keys bypass shared limits. <br/>
+                  <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-blue-500 underline">Get a Priority Key (Google Cloud Billing)</a>
+                </p>
+              )}
             </div>
           </div>
         )}

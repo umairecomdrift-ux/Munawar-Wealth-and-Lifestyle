@@ -1,53 +1,79 @@
 
-import { GoogleGenAI } from "@google/genai";
+import { GoogleGenAI, Type } from "@google/genai";
 import { Framework, GroundingSource } from "../types";
 
 export const generateFramework = async (
   topic: string
 ): Promise<{ framework: Framework; sources: GroundingSource[] }> => {
-  // Always create a new instance to pick up the latest API_KEY (especially after using openSelectKey)
+  // Use a new instance to ensure we pick up the latest injected API_KEY
   const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
+    // Framework generation is a complex reasoning task, switching to Gemini 3 Pro
+    model: 'gemini-3-pro-preview',
     contents: `As Munawar, Wealth & Wisdom Architect, generate a comprehensive intellectual framework for: "${topic}". 
-    Output strictly as JSON matching this structure:
-    {
-      "topicSummary": "A punchy, profound 1-sentence summary of the core thesis.",
-      "topicContext": "2-3 sentences explaining the systemic context and why this matters for long-term thinkers.",
-      "coreFrameworks": [
-        {
-          "name": "Framework Name (e.g., The Asymmetric Risk Engine)",
-          "points": ["Insight 1", "Insight 2", "Insight 3"],
-          "logic": "The underlying formula or logical progression (e.g., Input -> Filtering -> Compounding)"
-        }
-      ],
-      "mentalModels": [
-        {
-          "name": "Classic or Custom Model Name",
-          "application": "How to specifically use this model for this topic."
-        }
-      ],
-      "decisionRules": ["Strict IF/THEN rule for practical application"],
-      "lifestyleTradeOffs": [
-        {
-          "tradeOff": "Benefit A vs. Cost B",
-          "reality": "The brutal, honest truth about what you must sacrifice to gain this."
-        }
-      ],
-      "longTermPerspective": "A closing thought on how this topic looks on a 20-50 year horizon."
-    }
     Tone: Calm, Deeply Rational, Minimalist, Authoritative. Avoid hype and buzzwords.`,
     config: {
       responseMimeType: "application/json",
+      // Enforce specific JSON structure with responseSchema
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          topicSummary: { type: Type.STRING },
+          topicContext: { type: Type.STRING },
+          coreFrameworks: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                name: { type: Type.STRING },
+                points: { type: Type.ARRAY, items: { type: Type.STRING } },
+                logic: { type: Type.STRING }
+              },
+              required: ["name", "points", "logic"]
+            }
+          },
+          mentalModels: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                name: { type: Type.STRING },
+                application: { type: Type.STRING }
+              },
+              required: ["name", "application"]
+            }
+          },
+          decisionRules: { type: Type.ARRAY, items: { type: Type.STRING } },
+          lifestyleTradeOffs: {
+            type: Type.ARRAY,
+            items: {
+              type: Type.OBJECT,
+              properties: {
+                tradeOff: { type: Type.STRING },
+                reality: { type: Type.STRING }
+              },
+              required: ["tradeOff", "reality"]
+            }
+          },
+          longTermPerspective: { type: Type.STRING }
+        },
+        required: ["topicSummary", "topicContext", "coreFrameworks", "mentalModels", "decisionRules", "lifestyleTradeOffs", "longTermPerspective"]
+      },
       tools: [{ googleSearch: {} }],
     },
   });
 
   const text = response.text;
-  if (!text) throw new Error("No architectural data returned from the model.");
+  if (!text) throw new Error("Architectural data stream was interrupted.");
   
-  const framework: Framework = JSON.parse(text);
+  // Safely clean potential markdown wrappers before parsing
+  let jsonStr = text.trim();
+  if (jsonStr.startsWith('```json')) {
+    jsonStr = jsonStr.replace(/^```json\n?/, '').replace(/\n?```$/, '');
+  }
+  
+  const framework: Framework = JSON.parse(jsonStr);
   
   const sources: GroundingSource[] = [];
   const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
