@@ -9,8 +9,15 @@ import { Framework, GroundingSource } from "../types";
 export const generateFramework = async (
   topic: string
 ): Promise<{ framework: Framework; sources: GroundingSource[] }> => {
+  // Validate presence of key before attempting initialization
+  const apiKey = process.env.API_KEY;
+  
+  if (!apiKey || apiKey === 'undefined' || apiKey === '') {
+    throw new Error("CONFIGURATION_ERROR: API Key is missing. Check your Netlify environment variables.");
+  }
+
   // STRICT REQUIREMENT: Always use process.env.API_KEY directly in initialization.
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey });
   
   const response = await ai.models.generateContent({
     model: 'gemini-3-flash-preview',
@@ -79,9 +86,9 @@ export const generateFramework = async (
   const framework: Framework = JSON.parse(jsonStr);
   const sources: GroundingSource[] = [];
   
-  const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
-  if (groundingChunks) {
-    groundingChunks.forEach((chunk: any) => {
+  const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
+  if (groundingMetadata?.groundingChunks) {
+    groundingMetadata.groundingChunks.forEach((chunk: any) => {
       if (chunk.web) {
         sources.push({
           title: chunk.web.title || "External Intelligence",

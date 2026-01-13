@@ -30,22 +30,13 @@ const App: React.FC = () => {
       let isKeyError = false;
       const errStr = (err.message || JSON.stringify(err)).toLowerCase();
       
-      if (errStr.includes("api key") || errStr.includes("invalid api key") || errStr.includes("403")) {
-        message = "System authorization failure. Ensure 'GEMINI_API_KEY' (without VITE_ prefix) is correctly set in your Netlify settings and re-deploy.";
+      if (errStr.includes("configuration_error") || errStr.includes("api key") || errStr.includes("403")) {
+        message = "System authorization failure. Please ensure 'GEMINI_API_KEY' is set in Netlify Environment Variables, then trigger a 'Clear Cache and Deploy' to bake the key into the app.";
         isKeyError = true;
-      } else if (
-        errStr.includes("429") || 
-        errStr.includes("resource_exhausted") || 
-        errStr.includes("quota")
-      ) {
+      } else if (errStr.includes("429") || errStr.includes("quota")) {
         message = "The system is currently handling high volume. Please wait a moment and try again.";
       } else {
-        try {
-          const parsed = JSON.parse(err.message || JSON.stringify(err));
-          message = parsed.error?.message || err.message || message;
-        } catch {
-          message = err.message || message;
-        }
+        message = err.message || message;
       }
 
       setError({ message, isKeyError });
