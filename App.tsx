@@ -31,7 +31,7 @@ const App: React.FC = () => {
       const errStr = (err.message || JSON.stringify(err)).toLowerCase();
       
       if (errStr.includes("configuration_error") || errStr.includes("api key") || errStr.includes("403")) {
-        message = "System authorization failure. Please ensure 'GEMINI_API_KEY' is set in Netlify Environment Variables, then trigger a 'Clear Cache and Deploy' to bake the key into the app.";
+        message = "System authorization failure. Ensure 'GEMINI_API_KEY' is added to your Vercel Project Environment Variables and re-deploy.";
         isKeyError = true;
       } else if (errStr.includes("429") || errStr.includes("quota")) {
         message = "The system is currently handling high volume. Please wait a moment and try again.";
