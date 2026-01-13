@@ -12,8 +12,8 @@ export const generateFramework = async (
   // Validate presence of key before attempting initialization
   const apiKey = process.env.API_KEY;
   
-  if (!apiKey || apiKey === 'undefined' || apiKey === '') {
-    throw new Error("CONFIGURATION_ERROR: API Key is missing. Check your Netlify environment variables.");
+  if (!apiKey || apiKey === 'undefined' || apiKey === '' || apiKey === '""') {
+    throw new Error("CONFIGURATION_ERROR: GEMINI_API_KEY is not detected. Please verify your Netlify Environment Variables.");
   }
 
   // STRICT REQUIREMENT: Always use process.env.API_KEY directly in initialization.
