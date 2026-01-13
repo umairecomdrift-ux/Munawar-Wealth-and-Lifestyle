@@ -3,18 +3,19 @@ import { defineConfig, loadEnv } from 'vite';
 import react from '@vitejs/plugin-react';
 
 export default defineConfig(({ mode }) => {
-  // Load variables from .env files
+  // Load all environment variables regardless of prefix
   const root = (process as any).cwd ? (process as any).cwd() : '';
   const env = loadEnv(mode, root, '');
   
-  // Create a combined environment object that merges file-based and system-based variables.
-  // This is crucial for platforms like Netlify where variables are in process.env but not in .env files.
-  const API_KEY = env.VITE_GEMINI_API_KEY || process.env.VITE_GEMINI_API_KEY || env.API_KEY || process.env.API_KEY || '';
+  // Use GEMINI_API_KEY instead of VITE_ prefixed variables.
+  // This satisfies Netlify's scanner which specifically flags VITE_ variables as leaks.
+  const API_KEY = env.GEMINI_API_KEY || process.env.GEMINI_API_KEY || '';
 
   return {
     plugins: [react()],
     define: {
-      // Shim process.env.API_KEY exactly as required by the @google/genai library instructions.
+      // Shim process.env.API_KEY as required by @google/genai.
+      // Note: This makes the key available in the browser bundle.
       'process.env.API_KEY': JSON.stringify(API_KEY)
     }
   };

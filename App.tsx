@@ -30,8 +30,8 @@ const App: React.FC = () => {
       let isKeyError = false;
       const errStr = (err.message || JSON.stringify(err)).toLowerCase();
       
-      if (errStr.includes("api key") || errStr.includes("invalid api key")) {
-        message = "System authorization failure. Ensure 'VITE_GEMINI_API_KEY' is correctly set in your Netlify Environment Variables and re-deploy.";
+      if (errStr.includes("api key") || errStr.includes("invalid api key") || errStr.includes("403")) {
+        message = "System authorization failure. Ensure 'GEMINI_API_KEY' (without VITE_ prefix) is correctly set in your Netlify settings and re-deploy.";
         isKeyError = true;
       } else if (
         errStr.includes("429") || 

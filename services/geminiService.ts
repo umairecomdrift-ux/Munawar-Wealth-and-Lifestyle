@@ -9,17 +9,10 @@ import { Framework, GroundingSource } from "../types";
 export const generateFramework = async (
   topic: string
 ): Promise<{ framework: Framework; sources: GroundingSource[] }> => {
-  // Validate key existence before initialization
-  const apiKey = process.env.API_KEY;
-  if (!apiKey || apiKey === 'undefined' || apiKey === '') {
-    throw new Error("API Key missing. Please ensure 'VITE_GEMINI_API_KEY' is set in your Netlify site settings and re-deploy.");
-  }
-
-  // Correct Initialization: Must use named parameter and process.env.API_KEY directly.
-  const ai = new GoogleGenAI({ apiKey });
+  // STRICT REQUIREMENT: Always use process.env.API_KEY directly in initialization.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const response = await ai.models.generateContent({
-    // Using gemini-3-flash-preview for high compatibility and speed.
     model: 'gemini-3-flash-preview',
     contents: `Architect a wisdom framework for: "${topic}"`,
     config: {
@@ -30,8 +23,8 @@ export const generateFramework = async (
       responseSchema: {
         type: Type.OBJECT,
         properties: {
-          topicSummary: { type: Type.STRING, description: "One-sentence strategic thesis." },
-          topicContext: { type: Type.STRING, description: "Systemic context of the problem." },
+          topicSummary: { type: Type.STRING },
+          topicContext: { type: Type.STRING },
           coreFrameworks: {
             type: Type.ARRAY,
             items: {
@@ -39,7 +32,7 @@ export const generateFramework = async (
               properties: {
                 name: { type: Type.STRING },
                 points: { type: Type.ARRAY, items: { type: Type.STRING } },
-                logic: { type: Type.STRING, description: "The logical formula or principle behind this module." }
+                logic: { type: Type.STRING }
               },
               required: ["name", "points", "logic"]
             }
@@ -67,7 +60,7 @@ export const generateFramework = async (
               required: ["tradeOff", "reality"]
             }
           },
-          longTermPerspective: { type: Type.STRING, description: "A decadal outlook on the topic." }
+          longTermPerspective: { type: Type.STRING }
         },
         required: ["topicSummary", "topicContext", "coreFrameworks", "mentalModels", "decisionRules", "lifestyleTradeOffs", "longTermPerspective"]
       },
@@ -75,7 +68,6 @@ export const generateFramework = async (
     },
   });
 
-  // Extract text output using the .text property.
   const text = response.text;
   if (!text) throw new Error("Architectural reasoning stream was interrupted.");
   
