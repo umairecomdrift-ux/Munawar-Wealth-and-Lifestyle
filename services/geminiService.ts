@@ -13,7 +13,7 @@ export const generateFramework = async (
   const apiKey = process.env.API_KEY;
   
   if (!apiKey || apiKey === 'undefined' || apiKey === '' || apiKey === '""') {
-    throw new Error("CONFIGURATION_ERROR: GEMINI_API_KEY is not detected. Please verify your Netlify Environment Variables.");
+    throw new Error("CONFIGURATION_ERROR: GEMINI_API_KEY is not detected. Please verify your Cloudflare Pages Environment Variables (Production & Preview).");
   }
 
   // STRICT REQUIREMENT: Always use process.env.API_KEY directly in initialization.
