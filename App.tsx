@@ -4,7 +4,7 @@ import { AppStatus, Framework, GroundingSource } from './types';
 import { generateFramework } from './services/geminiService';
 import InputForm from './components/InputForm';
 import FrameworkDisplay from './components/FrameworkDisplay';
-import { Loader2, Info, FileDown, RefreshCw, Key, AlertCircle, ShieldCheck } from 'lucide-react';
+import { Loader2, FileDown, RefreshCw, Key, AlertCircle, ShieldCheck } from 'lucide-react';
 
 declare global {
   interface AIStudio {
@@ -52,22 +52,22 @@ const App: React.FC = () => {
       let isQuota = false;
       let isKeyMissing = false;
 
-      const errStr = err.message || JSON.stringify(err);
+      const errStr = (err.message || JSON.stringify(err)).toLowerCase();
       
-      if (errStr.includes("API Key not found") || errStr.includes("valid API key")) {
-        message = "No Priority Key detected. Please provide an API key from a paid GCP project to begin architecture.";
+      if (errStr.includes("api key not found") || errStr.includes("invalid api key")) {
+        message = "System Key missing or invalid. Use the 'Priority Key' selector to connect a paid Google Cloud project for reliable access.";
         isKeyMissing = true;
       } else if (
         errStr.includes("429") || 
-        errStr.includes("RESOURCE_EXHAUSTED") || 
-        errStr.toLowerCase().includes("quota")
+        errStr.includes("resource_exhausted") || 
+        errStr.includes("quota")
       ) {
-        message = "Shared lane capacity exceeded. Please use a Priority Key for immediate high-speed access.";
+        message = "Processing capacity reached. Use a Priority Key to bypass shared limits and access high-speed reasoning.";
         isQuota = true;
       } else {
         try {
-          const parsed = JSON.parse(errStr);
-          message = parsed.error?.message || message;
+          const parsed = JSON.parse(err.message || JSON.stringify(err));
+          message = parsed.error?.message || err.message || message;
         } catch {
           message = err.message || message;
         }
@@ -88,6 +88,7 @@ const App: React.FC = () => {
   const handleOpenKeySelector = async () => {
     if (window.aistudio?.openSelectKey) {
       await window.aistudio.openSelectKey();
+      // Force UI update
       setHasPersonalKey(true);
       setError(null);
       if (status === AppStatus.ERROR) {
@@ -145,7 +146,7 @@ const App: React.FC = () => {
             {!hasPersonalKey && (
                <button 
                onClick={handleOpenKeySelector}
-               className="hidden sm:flex items-center gap-2 px-4 py-2 border border-blue-100 text-blue-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all"
+               className="flex items-center gap-2 px-4 py-2 border border-blue-100 text-blue-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all"
              >
                <Key className="w-3 h-3" />
                Priority Key
@@ -167,7 +168,7 @@ const App: React.FC = () => {
             <div className="text-center space-y-6">
               <h2 className="text-5xl font-black text-slate-900 tracking-tight leading-none">Framework <br/><span className="text-blue-600 underline decoration-blue-100 underline-offset-8">Architect.</span></h2>
               <p className="text-xl text-slate-500 font-medium leading-relaxed max-w-lg mx-auto">
-                High-speed reasoning for wealth and lifestyle systems powered by <span className="text-blue-600 font-bold">Gemini 3 Flash</span>.
+                Sophisticated reasoning for wealth and lifestyle systems powered by <span className="text-blue-600 font-bold">Gemini 3 Flash</span>.
               </p>
             </div>
             <InputForm onGenerate={handleGenerate} isSubmitting={false} />
@@ -183,8 +184,8 @@ const App: React.FC = () => {
               </div>
             </div>
             <div className="text-center space-y-3">
-              <p className="text-2xl font-black text-slate-900 tracking-tighter uppercase">Architectural Scan</p>
-              <p className="text-blue-500 font-bold text-xs uppercase tracking-[0.4em]">Compiling Data-Driven Wisdom</p>
+              <p className="text-2xl font-black text-slate-900 tracking-tighter uppercase">Compiling Logic</p>
+              <p className="text-blue-500 font-bold text-xs uppercase tracking-[0.4em]">Munawar is Architecting Your Wisdom</p>
             </div>
           </div>
         )}
@@ -219,7 +220,7 @@ const App: React.FC = () => {
               {(error.isQuota || error.isKeyMissing) && (
                 <div className="mt-8 p-6 bg-slate-50 rounded-2xl border border-slate-100">
                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest text-balance mb-3">
-                    A personal API key is required for uninterrupted architecture.
+                    A personal API key is required to ensure 100% architectural availability.
                   </p>
                   <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-blue-500 text-xs font-black underline underline-offset-4 hover:text-blue-700 transition-colors uppercase tracking-widest">
                     Setup Billing for Priority Key
@@ -237,7 +238,7 @@ const App: React.FC = () => {
             </div>
             <div className="mt-20 pt-12 border-t border-blue-50 flex flex-col items-center gap-6">
               <p className="text-blue-400 text-[9px] font-black uppercase tracking-[0.5em] text-center">
-                STRATEGIC DOCUMENT • ARCHITECT PERSONA: MUNAWAR
+                STRATEGIC DOCUMENT • PERSONA: MUNAWAR ARCHITECT
               </p>
             </div>
           </div>
