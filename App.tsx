@@ -4,14 +4,7 @@ import { AppStatus, Framework, GroundingSource } from './types';
 import { generateFramework } from './services/geminiService';
 import InputForm from './components/InputForm';
 import FrameworkDisplay from './components/FrameworkDisplay';
-import { Loader2, Info, FileDown, RefreshCw, Key, AlertCircle } from 'lucide-react';
-
-// Simple internal icon shim for ShieldCheck if not imported correctly
-function ShieldCheck({ className }: { className?: string }) {
-  return (
-    <svg className={className} xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.5 3.8 17 5 19 5a1 1 0 0 1 1 1z"/><path d="m9 12 2 2 4-4"/></svg>
-  );
-}
+import { Loader2, Info, FileDown, RefreshCw, Key, AlertCircle, ShieldCheck } from 'lucide-react';
 
 declare global {
   interface AIStudio {
@@ -28,7 +21,7 @@ const App: React.FC = () => {
   const [status, setStatus] = useState<AppStatus>(AppStatus.IDLE);
   const [framework, setFramework] = useState<Framework | null>(null);
   const [sources, setSources] = useState<GroundingSource[]>([]);
-  const [error, setError] = useState<{ message: string; isQuota: boolean } | null>(null);
+  const [error, setError] = useState<{ message: string; isQuota: boolean; isKeyMissing: boolean } | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
   const [hasPersonalKey, setHasPersonalKey] = useState(false);
 
@@ -55,23 +48,21 @@ const App: React.FC = () => {
     } catch (err: any) {
       console.error("Architectural Error:", err);
       
-      if (err.message?.includes("Requested entity was not found.")) {
-        setHasPersonalKey(false);
-        handleOpenKeySelector();
-        return;
-      }
-      
       let message = "An unexpected architectural error occurred.";
       let isQuota = false;
+      let isKeyMissing = false;
 
       const errStr = err.message || JSON.stringify(err);
-      if (
+      
+      if (errStr.includes("API Key not found") || errStr.includes("valid API key")) {
+        message = "No Priority Key detected. Please provide an API key from a paid GCP project to begin architecture.";
+        isKeyMissing = true;
+      } else if (
         errStr.includes("429") || 
         errStr.includes("RESOURCE_EXHAUSTED") || 
-        errStr.toLowerCase().includes("quota") ||
-        errStr.includes("limit")
+        errStr.toLowerCase().includes("quota")
       ) {
-        message = "Architectural Studio Quota Exhausted. The shared processing lane is at capacity. Use a Priority Key for immediate high-speed access.";
+        message = "Shared lane capacity exceeded. Please use a Priority Key for immediate high-speed access.";
         isQuota = true;
       } else {
         try {
@@ -82,7 +73,7 @@ const App: React.FC = () => {
         }
       }
 
-      setError({ message, isQuota });
+      setError({ message, isQuota, isKeyMissing });
       setStatus(AppStatus.ERROR);
     }
   };
@@ -108,20 +99,16 @@ const App: React.FC = () => {
   const downloadPDF = () => {
     const element = document.getElementById('framework-to-print');
     if (!element) return;
-    
     setIsDownloading(true);
     const opt = {
       margin: 10,
       filename: `Munawar-Framework-${new Date().getTime()}.pdf`,
       image: { type: 'jpeg', quality: 1 },
-      html2canvas: { scale: 3, useCORS: true, letterRendering: true },
+      html2canvas: { scale: 3, useCORS: true },
       jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
-
     // @ts-ignore
-    html2pdf().set(opt).from(element).save().then(() => {
-      setIsDownloading(false);
-    });
+    html2pdf().set(opt).from(element).save().then(() => setIsDownloading(false));
   };
 
   return (
@@ -167,7 +154,7 @@ const App: React.FC = () => {
             {hasPersonalKey && (
               <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-600 rounded-lg text-[10px] font-black uppercase tracking-widest border border-green-100">
                 <ShieldCheck className="w-3 h-3" />
-                Priority Access
+                Priority Access Active
               </div>
             )}
           </div>
@@ -184,17 +171,6 @@ const App: React.FC = () => {
               </p>
             </div>
             <InputForm onGenerate={handleGenerate} isSubmitting={false} />
-            <div className="bg-white border border-blue-100 p-8 rounded-[2.5rem] shadow-xl shadow-blue-500/5 flex gap-6">
-              <div className="w-12 h-12 bg-blue-50 rounded-2xl flex items-center justify-center shrink-0">
-                <Info className="w-6 h-6 text-blue-600" />
-              </div>
-              <div className="space-y-1">
-                <p className="font-bold text-slate-900 text-sm uppercase tracking-widest">Philosophy</p>
-                <p className="text-slate-500 text-sm leading-relaxed font-medium">
-                  Solving for decades, not months. Every framework is built with systemic logic and long-term rational principles.
-                </p>
-              </div>
-            </div>
           </div>
         )}
 
@@ -207,8 +183,8 @@ const App: React.FC = () => {
               </div>
             </div>
             <div className="text-center space-y-3">
-              <p className="text-2xl font-black text-slate-900 tracking-tighter uppercase">Flash Reasoning</p>
-              <p className="text-blue-500 font-bold text-xs uppercase tracking-[0.4em]">Optimizing Intellectual Infrastructure</p>
+              <p className="text-2xl font-black text-slate-900 tracking-tighter uppercase">Architectural Scan</p>
+              <p className="text-blue-500 font-bold text-xs uppercase tracking-[0.4em]">Compiling Data-Driven Wisdom</p>
             </div>
           </div>
         )}
@@ -230,7 +206,7 @@ const App: React.FC = () => {
                 >
                   TRY AGAIN
                 </button>
-                {error.isQuota && !hasPersonalKey && (
+                {(error.isQuota || error.isKeyMissing) && (
                   <button 
                     onClick={handleOpenKeySelector}
                     className="bg-blue-600 text-white px-10 py-4 rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-xl shadow-blue-200 flex items-center gap-2 justify-center"
@@ -240,13 +216,13 @@ const App: React.FC = () => {
                   </button>
                 )}
               </div>
-              {error.isQuota && (
+              {(error.isQuota || error.isKeyMissing) && (
                 <div className="mt-8 p-6 bg-slate-50 rounded-2xl border border-slate-100">
                   <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest text-balance mb-3">
-                    Personal keys bypass shared processing limits.
+                    A personal API key is required for uninterrupted architecture.
                   </p>
                   <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-blue-500 text-xs font-black underline underline-offset-4 hover:text-blue-700 transition-colors uppercase tracking-widest">
-                    Get a Priority Key
+                    Setup Billing for Priority Key
                   </a>
                 </div>
               )}
@@ -261,7 +237,7 @@ const App: React.FC = () => {
             </div>
             <div className="mt-20 pt-12 border-t border-blue-50 flex flex-col items-center gap-6">
               <p className="text-blue-400 text-[9px] font-black uppercase tracking-[0.5em] text-center">
-                STRATEGIC DOCUMENT • GENERATED VIA FLASH REASONING
+                STRATEGIC DOCUMENT • ARCHITECT PERSONA: MUNAWAR
               </p>
             </div>
           </div>

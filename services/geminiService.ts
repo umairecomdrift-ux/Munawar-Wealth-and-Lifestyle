@@ -5,22 +5,26 @@ import { Framework, GroundingSource } from "../types";
 export const generateFramework = async (
   topic: string
 ): Promise<{ framework: Framework; sources: GroundingSource[] }> => {
-  // Always create a new instance to pick up the most up-to-date API key (especially after priority key selection)
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const apiKey = process.env.API_KEY;
+  if (!apiKey) {
+    throw new Error("API Key not found. Please use the Priority Key button to provide a valid key.");
+  }
+
+  const ai = new GoogleGenAI({ apiKey });
   
   const response = await ai.models.generateContent({
-    // Using gemini-3-flash-preview as requested for better availability and free-tier performance
     model: 'gemini-3-flash-preview',
-    contents: `As Munawar, Wealth & Wisdom Architect, generate a comprehensive intellectual framework for: "${topic}". 
-    Tone: Calm, Deeply Rational, Minimalist, Authoritative. Avoid hype and buzzwords.`,
+    contents: `Analyze and architect a framework for: "${topic}"`,
     config: {
+      systemInstruction: "You are Munawar, a Wealth, Wisdom & Lifestyle Architect and long-term investor. Your tone is professional, sophisticated, and insightful. Provide data-driven, rational advice. Focus on 20-50 year horizons and systemic logic. Avoid buzzwords and hype.",
+      temperature: 0.2, // Lower temperature for consistency and rationality
+      topP: 0.95,
       responseMimeType: "application/json",
-      // Strict schema ensures structured output even with smaller models
       responseSchema: {
         type: Type.OBJECT,
         properties: {
-          topicSummary: { type: Type.STRING },
-          topicContext: { type: Type.STRING },
+          topicSummary: { type: Type.STRING, description: "One-sentence thesis." },
+          topicContext: { type: Type.STRING, description: "Systemic context." },
           coreFrameworks: {
             type: Type.ARRAY,
             items: {
@@ -28,7 +32,7 @@ export const generateFramework = async (
               properties: {
                 name: { type: Type.STRING },
                 points: { type: Type.ARRAY, items: { type: Type.STRING } },
-                logic: { type: Type.STRING }
+                logic: { type: Type.STRING, description: "The logical formula." }
               },
               required: ["name", "points", "logic"]
             }
@@ -56,7 +60,7 @@ export const generateFramework = async (
               required: ["tradeOff", "reality"]
             }
           },
-          longTermPerspective: { type: Type.STRING }
+          longTermPerspective: { type: Type.STRING, description: "Decadal outlook." }
         },
         required: ["topicSummary", "topicContext", "coreFrameworks", "mentalModels", "decisionRules", "lifestyleTradeOffs", "longTermPerspective"]
       },
@@ -65,16 +69,14 @@ export const generateFramework = async (
   });
 
   const text = response.text;
-  if (!text) throw new Error("Architectural reasoning was interrupted by the system.");
+  if (!text) throw new Error("Architectural data stream interrupted.");
   
-  // Flash models sometimes include markdown wrappers, we strip them to ensure clean parsing
   let jsonStr = text.trim();
   if (jsonStr.startsWith('```json')) {
     jsonStr = jsonStr.replace(/^```json\n?/, '').replace(/\n?```$/, '');
   }
   
   const framework: Framework = JSON.parse(jsonStr);
-  
   const sources: GroundingSource[] = [];
   const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
   if (groundingChunks) {
