@@ -4,17 +4,23 @@ import { Framework, GroundingSource } from "../types";
 
 /**
  * Generates a sophisticated wisdom framework based on the provided topic.
- * Uses Gemini 3 Pro for complex architectural reasoning and systemic logic.
+ * Uses Gemini 3 Flash for fast, efficient architectural reasoning.
  */
 export const generateFramework = async (
   topic: string
 ): Promise<{ framework: Framework; sources: GroundingSource[] }> => {
+  // Validate key existence before initialization
+  const apiKey = process.env.API_KEY;
+  if (!apiKey || apiKey === 'undefined' || apiKey === '') {
+    throw new Error("API Key missing. Please ensure 'VITE_GEMINI_API_KEY' is set in your Netlify site settings and re-deploy.");
+  }
+
   // Correct Initialization: Must use named parameter and process.env.API_KEY directly.
-  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+  const ai = new GoogleGenAI({ apiKey });
   
   const response = await ai.models.generateContent({
-    // Using gemini-3-pro-preview for complex architectural and reasoning tasks.
-    model: 'gemini-3-pro-preview',
+    // Using gemini-3-flash-preview for high compatibility and speed.
+    model: 'gemini-3-flash-preview',
     contents: `Architect a wisdom framework for: "${topic}"`,
     config: {
       systemInstruction: "You are Munawar, a Wealth, Wisdom & Lifestyle Architect. Your tone is professional, sophisticated, and deeply rational. Focus on 20-50 year horizons and systemic logic. Provide data-driven advice. Avoid buzzwords and hype.",
@@ -69,12 +75,11 @@ export const generateFramework = async (
     },
   });
 
-  // Extract text output using the .text property (not a method).
+  // Extract text output using the .text property.
   const text = response.text;
   if (!text) throw new Error("Architectural reasoning stream was interrupted.");
   
   let jsonStr = text.trim();
-  // Handle potential markdown formatting if the model includes it despite JSON mode.
   if (jsonStr.startsWith('```json')) {
     jsonStr = jsonStr.replace(/^```json\n?/, '').replace(/\n?```$/, '');
   }
@@ -82,7 +87,6 @@ export const generateFramework = async (
   const framework: Framework = JSON.parse(jsonStr);
   const sources: GroundingSource[] = [];
   
-  // Extract website URLs from grounding chunks as per Search Grounding rules.
   const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks;
   if (groundingChunks) {
     groundingChunks.forEach((chunk: any) => {
