@@ -10,7 +10,7 @@ const App: React.FC = () => {
   const [status, setStatus] = useState<AppStatus>(AppStatus.IDLE);
   const [framework, setFramework] = useState<Framework | null>(null);
   const [sources, setSources] = useState<GroundingSource[]>([]);
-  const [error, setError] = useState<{ message: string } | null>(null);
+  const [error, setError] = useState<{ message: string; isKeyError?: boolean } | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
 
   const handleGenerate = async (topic: string) => {
@@ -27,10 +27,12 @@ const App: React.FC = () => {
       console.error("Architectural Error:", err);
       
       let message = "An unexpected architectural error occurred.";
+      let isKeyError = false;
       const errStr = (err.message || JSON.stringify(err)).toLowerCase();
       
       if (errStr.includes("api key") || errStr.includes("invalid api key")) {
-        message = "System authorization failure. Please contact the administrator to verify API configuration.";
+        message = "System authorization failure. Ensure 'VITE_GEMINI_API_KEY' is correctly set in your Netlify Environment Variables and re-deploy.";
+        isKeyError = true;
       } else if (
         errStr.includes("429") || 
         errStr.includes("resource_exhausted") || 
@@ -46,7 +48,7 @@ const App: React.FC = () => {
         }
       }
 
-      setError({ message });
+      setError({ message, isKeyError });
       setStatus(AppStatus.ERROR);
     }
   };
