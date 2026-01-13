@@ -1,39 +1,17 @@
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { AppStatus, Framework, GroundingSource } from './types';
 import { generateFramework } from './services/geminiService';
 import InputForm from './components/InputForm';
 import FrameworkDisplay from './components/FrameworkDisplay';
-import { Loader2, FileDown, RefreshCw, Key, AlertCircle, ShieldCheck } from 'lucide-react';
-
-declare global {
-  interface AIStudio {
-    hasSelectedApiKey: () => Promise<boolean>;
-    openSelectKey: () => Promise<void>;
-  }
-
-  interface Window {
-    aistudio?: AIStudio;
-  }
-}
+import { Loader2, FileDown, RefreshCw, AlertCircle } from 'lucide-react';
 
 const App: React.FC = () => {
   const [status, setStatus] = useState<AppStatus>(AppStatus.IDLE);
   const [framework, setFramework] = useState<Framework | null>(null);
   const [sources, setSources] = useState<GroundingSource[]>([]);
-  const [error, setError] = useState<{ message: string; isQuota: boolean; isKeyMissing: boolean } | null>(null);
+  const [error, setError] = useState<{ message: string } | null>(null);
   const [isDownloading, setIsDownloading] = useState(false);
-  const [hasPersonalKey, setHasPersonalKey] = useState(false);
-
-  useEffect(() => {
-    const checkKey = async () => {
-      if (window.aistudio?.hasSelectedApiKey) {
-        const hasKey = await window.aistudio.hasSelectedApiKey();
-        setHasPersonalKey(hasKey);
-      }
-    };
-    checkKey();
-  }, []);
 
   const handleGenerate = async (topic: string) => {
     try {
@@ -49,21 +27,16 @@ const App: React.FC = () => {
       console.error("Architectural Error:", err);
       
       let message = "An unexpected architectural error occurred.";
-      let isQuota = false;
-      let isKeyMissing = false;
-
       const errStr = (err.message || JSON.stringify(err)).toLowerCase();
       
-      if (errStr.includes("api key not found") || errStr.includes("invalid api key")) {
-        message = "System Key missing or invalid. Use the 'Priority Key' selector to connect a paid Google Cloud project for reliable access.";
-        isKeyMissing = true;
+      if (errStr.includes("api key") || errStr.includes("invalid api key")) {
+        message = "System authorization failure. Please contact the administrator to verify API configuration.";
       } else if (
         errStr.includes("429") || 
         errStr.includes("resource_exhausted") || 
         errStr.includes("quota")
       ) {
-        message = "Processing capacity reached. Use a Priority Key to bypass shared limits and access high-speed reasoning.";
-        isQuota = true;
+        message = "The system is currently handling high volume. Please wait a moment and try again.";
       } else {
         try {
           const parsed = JSON.parse(err.message || JSON.stringify(err));
@@ -73,7 +46,7 @@ const App: React.FC = () => {
         }
       }
 
-      setError({ message, isQuota, isKeyMissing });
+      setError({ message });
       setStatus(AppStatus.ERROR);
     }
   };
@@ -83,18 +56,6 @@ const App: React.FC = () => {
     setSources([]);
     setStatus(AppStatus.IDLE);
     setError(null);
-  };
-
-  const handleOpenKeySelector = async () => {
-    if (window.aistudio?.openSelectKey) {
-      await window.aistudio.openSelectKey();
-      // Force UI update
-      setHasPersonalKey(true);
-      setError(null);
-      if (status === AppStatus.ERROR) {
-        setStatus(AppStatus.IDLE);
-      }
-    }
   };
 
   const downloadPDF = () => {
@@ -143,21 +104,6 @@ const App: React.FC = () => {
                 </button>
               </>
             )}
-            {!hasPersonalKey && (
-               <button 
-               onClick={handleOpenKeySelector}
-               className="flex items-center gap-2 px-4 py-2 border border-blue-100 text-blue-400 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-blue-50 transition-all"
-             >
-               <Key className="w-3 h-3" />
-               Priority Key
-             </button>
-            )}
-            {hasPersonalKey && (
-              <div className="flex items-center gap-2 px-3 py-1.5 bg-green-50 text-green-600 rounded-lg text-[10px] font-black uppercase tracking-widest border border-green-100">
-                <ShieldCheck className="w-3 h-3" />
-                Priority Access Active
-              </div>
-            )}
           </div>
         </div>
       </header>
@@ -168,7 +114,7 @@ const App: React.FC = () => {
             <div className="text-center space-y-6">
               <h2 className="text-5xl font-black text-slate-900 tracking-tight leading-none">Framework <br/><span className="text-blue-600 underline decoration-blue-100 underline-offset-8">Architect.</span></h2>
               <p className="text-xl text-slate-500 font-medium leading-relaxed max-w-lg mx-auto">
-                Sophisticated reasoning for wealth and lifestyle systems powered by <span className="text-blue-600 font-bold">Gemini 3 Flash</span>.
+                Sophisticated reasoning for wealth and lifestyle systems powered by <span className="text-blue-600 font-bold">Gemini 3 Pro</span>.
               </p>
             </div>
             <InputForm onGenerate={handleGenerate} isSubmitting={false} />
@@ -184,7 +130,7 @@ const App: React.FC = () => {
               </div>
             </div>
             <div className="text-center space-y-3">
-              <p className="text-2xl font-black text-slate-900 tracking-tighter uppercase">Compiling Logic</p>
+              <p className="text-2xl font-black text-slate-900 tracking-tighter uppercase">Pro Architecture</p>
               <p className="text-blue-500 font-bold text-xs uppercase tracking-[0.4em]">Munawar is Architecting Your Wisdom</p>
             </div>
           </div>
@@ -200,33 +146,14 @@ const App: React.FC = () => {
               <p className="text-slate-500 font-medium mb-10 leading-relaxed px-4 text-balance">
                 {error.message}
               </p>
-              <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <div className="flex justify-center">
                 <button 
                   onClick={handleReset}
                   className="bg-slate-900 text-white px-10 py-4 rounded-2xl font-bold hover:bg-slate-800 transition-all shadow-xl"
                 >
                   TRY AGAIN
                 </button>
-                {(error.isQuota || error.isKeyMissing) && (
-                  <button 
-                    onClick={handleOpenKeySelector}
-                    className="bg-blue-600 text-white px-10 py-4 rounded-2xl font-bold hover:bg-blue-700 transition-all shadow-xl shadow-blue-200 flex items-center gap-2 justify-center"
-                  >
-                    <Key className="w-4 h-4" />
-                    USE PRIORITY KEY
-                  </button>
-                )}
               </div>
-              {(error.isQuota || error.isKeyMissing) && (
-                <div className="mt-8 p-6 bg-slate-50 rounded-2xl border border-slate-100">
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest text-balance mb-3">
-                    A personal API key is required to ensure 100% architectural availability.
-                  </p>
-                  <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" className="text-blue-500 text-xs font-black underline underline-offset-4 hover:text-blue-700 transition-colors uppercase tracking-widest">
-                    Setup Billing for Priority Key
-                  </a>
-                </div>
-              )}
             </div>
           </div>
         )}
