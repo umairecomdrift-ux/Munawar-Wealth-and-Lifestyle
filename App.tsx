@@ -30,8 +30,9 @@ const App: React.FC = () => {
       let isKeyError = false;
       const errStr = (err.message || JSON.stringify(err)).toLowerCase();
       
-      if (errStr.includes("configuration_error") || errStr.includes("api key") || errStr.includes("403")) {
-        message = "System authorization failure. Go to Cloudflare Pages > Settings > Environment variables, add 'GEMINI_API_KEY' and retry the deployment.";
+      // Handle authorization errors gracefully without specific configuration instructions for the user.
+      if (errStr.includes("api key") || errStr.includes("403") || errStr.includes("unauthorized")) {
+        message = "System authorization failure. Please contact support if the issue persists.";
         isKeyError = true;
       } else if (errStr.includes("429") || errStr.includes("quota")) {
         message = "The system is currently handling high volume. Please wait a moment and try again.";

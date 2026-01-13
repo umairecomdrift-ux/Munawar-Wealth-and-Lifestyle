@@ -4,23 +4,18 @@ import { Framework, GroundingSource } from "../types";
 
 /**
  * Generates a sophisticated wisdom framework based on the provided topic.
- * Uses Gemini 3 Flash for fast, efficient architectural reasoning.
+ * Uses Gemini 3 Pro for advanced architectural reasoning.
  */
 export const generateFramework = async (
   topic: string
 ): Promise<{ framework: Framework; sources: GroundingSource[] }> => {
-  // Validate presence of key before attempting initialization
-  const apiKey = process.env.API_KEY;
-  
-  if (!apiKey || apiKey === 'undefined' || apiKey === '' || apiKey === '""') {
-    throw new Error("CONFIGURATION_ERROR: GEMINI_API_KEY is not detected. Please verify your Cloudflare Pages Environment Variables (Production & Preview).");
-  }
-
   // STRICT REQUIREMENT: Always use process.env.API_KEY directly in initialization.
-  const ai = new GoogleGenAI({ apiKey });
+  // Assume this variable is pre-configured and valid in the execution context.
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
   
   const response = await ai.models.generateContent({
-    model: 'gemini-3-flash-preview',
+    // Using gemini-3-pro-preview for complex architectural and reasoning tasks.
+    model: 'gemini-3-pro-preview',
     contents: `Architect a wisdom framework for: "${topic}"`,
     config: {
       systemInstruction: "You are Munawar, a Wealth, Wisdom & Lifestyle Architect. Your tone is professional, sophisticated, and deeply rational. Focus on 20-50 year horizons and systemic logic. Provide data-driven advice. Avoid buzzwords and hype.",
@@ -75,6 +70,7 @@ export const generateFramework = async (
     },
   });
 
+  // Extracting generated text directly using the .text property.
   const text = response.text;
   if (!text) throw new Error("Architectural reasoning stream was interrupted.");
   
@@ -86,6 +82,7 @@ export const generateFramework = async (
   const framework: Framework = JSON.parse(jsonStr);
   const sources: GroundingSource[] = [];
   
+  // Extracting website URLs from groundingChunks as per search grounding requirements.
   const groundingMetadata = response.candidates?.[0]?.groundingMetadata;
   if (groundingMetadata?.groundingChunks) {
     groundingMetadata.groundingChunks.forEach((chunk: any) => {
