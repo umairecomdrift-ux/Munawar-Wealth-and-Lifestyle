@@ -114,7 +114,7 @@ const App: React.FC = () => {
             <div className="text-center space-y-6">
               <h2 className="text-5xl font-black text-slate-900 tracking-tight leading-none">Framework <br/><span className="text-blue-600 underline decoration-blue-100 underline-offset-8">Architect.</span></h2>
               <p className="text-xl text-slate-500 font-medium leading-relaxed max-w-lg mx-auto">
-                Sophisticated reasoning for wealth and lifestyle systems powered by <span className="text-blue-600 font-bold">Gemini 3 Pro</span>.
+                Sophisticated reasoning for wealth and lifestyle systems powered by <span className="text-blue-600 font-bold">Munawar AI</span>.
               </p>
             </div>
             <InputForm onGenerate={handleGenerate} isSubmitting={false} />
@@ -130,7 +130,7 @@ const App: React.FC = () => {
               </div>
             </div>
             <div className="text-center space-y-3">
-              <p className="text-2xl font-black text-slate-900 tracking-tighter uppercase">Pro Architecture</p>
+              <p className="text-2xl font-black text-slate-900 tracking-tighter uppercase">Analyzing Systems</p>
               <p className="text-blue-500 font-bold text-xs uppercase tracking-[0.4em]">Munawar is Architecting Your Wisdom</p>
             </div>
           </div>
