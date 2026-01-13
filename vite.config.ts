@@ -12,8 +12,9 @@ export default defineConfig(({ mode }) => {
     plugins: [react()],
     define: {
       // This shims process.env.API_KEY for the browser.
-      // It checks standard API_KEY and your specific NEXT_PUBLIC variable.
+      // We prioritize the user's preferred VITE_GEMINI_API_KEY variable.
       'process.env.API_KEY': JSON.stringify(
+        env.VITE_GEMINI_API_KEY ||
         env.API_KEY || 
         env.NEXT_PUBLIC_GOOGLE_GENERATIVE_AI_API_KEY || 
         process.env.API_KEY || 
